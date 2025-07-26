@@ -53,13 +53,23 @@ class DRAStrategy(fl.server.strategy.Strategy):
         aggregated_params = []
         param_keys = self.model.state_dict().keys()
         for idx, key in enumerate(param_keys):
-            if "lora_A" in key or "lora_B" in key:
+            if "lora_A" in key:
                 adjusted_params = []
                 for i, client_param in enumerate(client_params):
                     param = torch.from_numpy(client_param[idx]).to(Config.DEVICE)
                     importance = torch.from_numpy(client_importance[i][key]).to(Config.DEVICE)
                     pretrain_param = self.pretrain_model.state_dict()[key]
                     adjusted_param = truncate_or_extend(param, self.r_g, importance, pretrain_param)
+                    adjusted_params.append(adjusted_param.cpu().numpy())
+                aggregated_param = np.average(adjusted_params, axis=0, weights=weights)
+                aggregated_params.append(aggregated_param)
+            elif "lora_B" in key:
+                adjusted_params = []
+                for i, client_param in enumerate(client_params):
+                    param = torch.from_numpy(client_param[idx]).to(Config.DEVICE)
+                    importance = torch.from_numpy(client_importance[i][key]).to(Config.DEVICE)
+                    pretrain_param = self.pretrain_model.state_dict()[key]
+                    adjusted_param = truncate_or_extend(param.T, self.r_g, importance, pretrain_param.T).T
                     adjusted_params.append(adjusted_param.cpu().numpy())
                 aggregated_param = np.average(adjusted_params, axis=0, weights=weights)
                 aggregated_params.append(aggregated_param)
